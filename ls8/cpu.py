@@ -7,7 +7,13 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+
+        self.pc = 0
+        # self.mar = 0
+        # self.mdr = 0
+        self.fl = 0
 
     def load(self):
         """Load a program into memory."""
@@ -29,6 +35,15 @@ class CPU:
         for instruction in program:
             self.ram[address] = instruction
             address += 1
+
+    # Memory Address Register (MAR) -------?
+    def ram_read(self, mar):
+        # print(mar) #debug
+        return self.ram[mar]
+
+    # Memory Data Register (MDR) ----------?
+    def ram_write(self, mar, mdr):
+        self.ram[mar] = mdr
 
 
     def alu(self, op, reg_a, reg_b):
@@ -62,4 +77,51 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+
+        LDI = 0b10000010 # LDI
+        HLT = 0b00000001 # HLT
+        PRN = 0b01000111 # PRN R0
+
+        # ir = self.ram_read(self.pc)
+        # operand_a = self.ram_read(self.pc+1)
+        # operand_b = self.ram_read(self.pc+2)
+
+        running = True
+
+        while running:
+
+            ir = self.ram_read(self.pc)
+            # print(f'ir: {ir}, pc: {self.pc}') #debug
+            if ir == LDI:
+                # print('LDI') #debug
+                operand_a = self.ram_read(self.pc+1)
+                operand_b = self.ram_read(self.pc+2)
+
+                #-- option 1
+                self.ram_write(operand_a, operand_b)
+
+                #-- option 2
+                # self.ram[operand_a] = operand_b
+
+                #-- option 3
+                # self.reg = operand_b
+                self.pc += 3
+
+            if ir == HLT:
+                # print('HLT') #debug
+                running = False
+                self.pc += 1
+
+            if ir == PRN:
+                # print('PRN') #debug
+                operand_a = self.ram_read(self.pc+1)
+
+                #-- option 1
+                print(self.ram_read(operand_a))
+
+                #-- option 2
+                # print(self.ram[operand_a])
+
+                #-- option 3
+                # print(self.reg)
+                self.pc += 2
