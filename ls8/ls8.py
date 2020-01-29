@@ -7,5 +7,8 @@ from cpu import *
 
 cpu = CPU()
 
-cpu.load()
-cpu.run()
+if len(sys.argv) < 2:
+    print('Please provide a program to run')
+else:
+    cpu.load(sys.argv[1])
+    cpu.run()

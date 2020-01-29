@@ -2,6 +2,11 @@
 
 import sys
 
+LDI = 0b10000010 # LDI
+HLT = 0b00000001 # HLT
+PRN = 0b01000111 # PRN R0
+MUL = 0b10100010 # MUL R0,R1
+
 class CPU:
     """Main CPU class."""
 
@@ -14,27 +19,48 @@ class CPU:
         # self.mar = 0
         # self.mdr = 0
         self.fl = 0
+        self.branchtable = {}
+        self.branchtable[LDI] = self.handle_ldi
+        self.branchtable[PRN] = self.handle_prn
+        self.branchtable[MUL] = self.handle_mul
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
+        try:
+            address = 0
+            with open(filename) as f:
+                for line in f:
+                    comment_split = line.split('#')
+                    num = comment_split[0].strip()
 
-        address = 0
+                    if num == "":
+                        continue
+
+                    value = int(num, 2)
+
+                    self.ram[address] = value
+                    address += 1
+            # print(self.ram)
+
+        except FileNotFoundError:
+            print(f'{sys.argv[0]}: {filename} not found')
+            sys.exit(2)
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        # for instruction in program:
+        #     self.ram[address] = instruction
+        #     address += 1
 
     # Memory Address Register (MAR) -------?
     def ram_read(self, mar):
@@ -51,7 +77,11 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == "SUB":
+            self.reg[reg_a] -= self.reg[reg_b]
+        elif op == 'MUL':
+            self.reg[reg_a] *= self.reg[reg_b]
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -75,12 +105,34 @@ class CPU:
 
         print()
 
+    def handle_ldi(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.reg[operand_a] = operand_b
+        self.pc += 3
+
+    def handle_prn(self):
+        operand_a = self.ram_read(self.pc+1)
+
+        print(self.reg[operand_a])
+        self.pc += 2
+
+    def handle_mul(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('MUL', operand_a, operand_b)
+
+        self.pc += 3
+
     def run(self):
         """Run the CPU."""
 
-        LDI = 0b10000010 # LDI
+        # LDI = 0b10000010 # LDI
         HLT = 0b00000001 # HLT
-        PRN = 0b01000111 # PRN R0
+        # PRN = 0b01000111 # PRN R0
+        # MUL = 0b10100010 # MUL R0,R1
 
         # ir = self.ram_read(self.pc)
         # operand_a = self.ram_read(self.pc+1)
@@ -92,36 +144,46 @@ class CPU:
 
             ir = self.ram_read(self.pc)
             # print(f'ir: {ir}, pc: {self.pc}') #debug
-            if ir == LDI:
-                # print('LDI') #debug
-                operand_a = self.ram_read(self.pc+1)
-                operand_b = self.ram_read(self.pc+2)
-
-                #-- option 1
-                self.ram_write(operand_a, operand_b)
-
-                #-- option 2
-                # self.ram[operand_a] = operand_b
-
-                #-- option 3
-                # self.reg = operand_b
-                self.pc += 3
-
             if ir == HLT:
                 # print('HLT') #debug
                 running = False
                 self.pc += 1
+            elif ir != HLT:
+                self.branchtable[ir]()
 
-            if ir == PRN:
-                # print('PRN') #debug
-                operand_a = self.ram_read(self.pc+1)
+            # if ir == LDI:
+                # # print('LDI') #debug
+                # operand_a = self.ram_read(self.pc+1)
+                # operand_b = self.ram_read(self.pc+2)
 
-                #-- option 1
-                print(self.ram_read(operand_a))
+                # #-- option 1
+                # # self.ram_write(operand_a, operand_b)
 
-                #-- option 2
-                # print(self.ram[operand_a])
+                # #-- option 2
+                # # self.ram[operand_a] = operand_b
 
-                #-- option 3
-                # print(self.reg)
-                self.pc += 2
+                # #-- option 3
+                # self.reg[operand_a] = operand_b
+                # self.pc += 3
+
+            # if ir == PRN:
+            #     # print('PRN') #debug
+            #     operand_a = self.ram_read(self.pc+1)
+
+            #     #-- option 1
+            #     # print(self.ram_read(operand_a))
+
+            #     #-- option 2
+            #     # print(self.ram[operand_a])
+
+            #     #-- option 3
+            #     print(self.reg[operand_a])
+            #     self.pc += 2
+
+            # if ir == MUL:
+            #     operand_a = self.ram_read(self.pc+1)
+            #     operand_b = self.ram_read(self.pc+2)
+
+            #     self.alu('MUL', operand_a, operand_b)
+
+            #     self.pc += 3
