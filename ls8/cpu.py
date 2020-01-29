@@ -6,6 +6,8 @@ LDI = 0b10000010 # LDI
 HLT = 0b00000001 # HLT
 PRN = 0b01000111 # PRN R0
 MUL = 0b10100010 # MUL R0,R1
+PUSH = 0b01000101 # PUSH R0
+POP = 0b01000110 # POP R0
 
 class CPU:
     """Main CPU class."""
@@ -16,6 +18,8 @@ class CPU:
         self.reg = [0] * 8
 
         self.pc = 0
+        self.sp = 7
+        self.reg[self.sp] = 0xF4
         # self.mar = 0
         # self.mdr = 0
         self.fl = 0
@@ -23,6 +27,8 @@ class CPU:
         self.branchtable[LDI] = self.handle_ldi
         self.branchtable[PRN] = self.handle_prn
         self.branchtable[MUL] = self.handle_mul
+        self.branchtable[PUSH] = self.handle_push
+        self.branchtable[POP] = self.handle_pop
 
     def load(self, filename):
         """Load a program into memory."""
@@ -126,6 +132,21 @@ class CPU:
 
         self.pc += 3
 
+    def handle_push(self):
+        operand_a = self.ram_read(self.pc+1)
+        self.reg[self.sp] -= 1
+        self.ram_write(self.reg[self.sp], self.reg[operand_a])
+
+        self.pc += 2
+
+    def handle_pop(self):
+        operand_a = self.ram_read(self.pc+1)
+        value = self.ram_read(self.reg[self.sp])
+        self.reg[operand_a] = value
+        self.reg[self.sp] += 1
+
+        self.pc += 2
+
     def run(self):
         """Run the CPU."""
 
@@ -141,7 +162,8 @@ class CPU:
         running = True
 
         while running:
-
+            # print(self.reg)
+            # print(self.ram[self.reg[self.sp]])
             ir = self.ram_read(self.pc)
             # print(f'ir: {ir}, pc: {self.pc}') #debug
             if ir == HLT:
