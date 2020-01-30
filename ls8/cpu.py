@@ -8,6 +8,9 @@ PRN = 0b01000111 # PRN R0
 MUL = 0b10100010 # MUL R0,R1
 PUSH = 0b01000101 # PUSH R0
 POP = 0b01000110 # POP R0
+CALL = 0b01010000 # CALL R1
+RET = 0b00010001 # RET
+ADD = 0b10100000 # ADD R0,R0
 
 class CPU:
     """Main CPU class."""
@@ -23,12 +26,16 @@ class CPU:
         # self.mar = 0
         # self.mdr = 0
         self.fl = 0
-        self.branchtable = {}
-        self.branchtable[LDI] = self.handle_ldi
-        self.branchtable[PRN] = self.handle_prn
-        self.branchtable[MUL] = self.handle_mul
-        self.branchtable[PUSH] = self.handle_push
-        self.branchtable[POP] = self.handle_pop
+        self.branchtable = {
+            LDI: self.handle_ldi,
+            PRN: self.handle_prn,
+            MUL: self.handle_mul,
+            PUSH: self.handle_push,
+            POP: self.handle_pop,
+            CALL: self.handle_call,
+            RET: self.handle_ret,
+            ADD: self.handle_add
+        }
 
     def load(self, filename):
         """Load a program into memory."""
@@ -132,6 +139,14 @@ class CPU:
 
         self.pc += 3
 
+    def handle_add(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('ADD', operand_a, operand_b)
+
+        self.pc += 3
+
     def handle_push(self):
         operand_a = self.ram_read(self.pc+1)
         self.reg[self.sp] -= 1
@@ -146,6 +161,21 @@ class CPU:
         self.reg[self.sp] += 1
 
         self.pc += 2
+
+    def handle_call(self):
+        operand_a = self.ram_read(self.pc+1) #the reg with the address
+        self.reg[self.sp] -= 1
+        self.ram_write(self.reg[self.sp], self.pc+2)
+        self.pc = self.reg[operand_a]
+
+
+    def handle_ret(self):
+        # operand_a = self.ram_read(self.pc+1)
+        value = self.ram_read(self.reg[self.sp])
+        # self.reg[operand_a] = value
+        self.reg[self.sp] += 1
+
+        self.pc = value
 
     def run(self):
         """Run the CPU."""
