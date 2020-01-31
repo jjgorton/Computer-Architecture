@@ -11,6 +11,11 @@ POP = 0b01000110 # POP R0
 CALL = 0b01010000 # CALL R1
 RET = 0b00010001 # RET
 ADD = 0b10100000 # ADD R0,R0
+# new-------
+CMP = 0b10100111
+JMP = 0b01010100
+JEQ = 0b01010101
+JNE = 0b01010110
 
 class CPU:
     """Main CPU class."""
@@ -25,7 +30,7 @@ class CPU:
         self.reg[self.sp] = 0xF4
         # self.mar = 0
         # self.mdr = 0
-        self.fl = 0
+        self.fl = 0 # only the equal flag currently
         self.branchtable = {
             LDI: self.handle_ldi,
             PRN: self.handle_prn,
@@ -34,7 +39,11 @@ class CPU:
             POP: self.handle_pop,
             CALL: self.handle_call,
             RET: self.handle_ret,
-            ADD: self.handle_add
+            ADD: self.handle_add,
+            CMP: self.handle_cmp,
+            JMP: self.handle_jmp,
+            JEQ: self.handle_jeq,
+            JNE: self.handle_jne
         }
 
     def load(self, filename):
@@ -94,6 +103,13 @@ class CPU:
             self.reg[reg_a] -= self.reg[reg_b]
         elif op == 'MUL':
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == 'CMP':
+            value_A = self.reg[reg_a]
+            value_B = self.reg[reg_b]
+            if value_A == value_B:
+                self.flag = 1
+            else:
+                self.flag = 0 
 
         else:
             raise Exception("Unsupported ALU operation")
@@ -176,6 +192,30 @@ class CPU:
         self.reg[self.sp] += 1
 
         self.pc = value
+
+    def handle_cmp(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('CMP', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_jmp(self):
+        operand_a = self.ram_read(self.pc+1)
+        self.pc = self.reg[operand_a]
+
+    def handle_jeq(self):
+        if self.flag: # is 1
+            self.handle_jmp()
+        else:
+            self.pc += 2
+
+    def handle_jne(self):
+        if not self.flag:
+            self.handle_jmp()
+        else:
+            self.pc += 2
 
     def run(self):
         """Run the CPU."""
