@@ -16,6 +16,14 @@ CMP = 0b10100111
 JMP = 0b01010100
 JEQ = 0b01010101
 JNE = 0b01010110
+# STRETCH-------
+AND = 0b10101000 # &
+OR = 0b10101010 # |
+XOR = 0b10101011 # ^
+NOT = 0b01101001 # ~
+SHL = 0b10101100 # << handle for only 8 bits
+SHR = 0b10101101 # >>
+MOD = 0b10100100 # %
 
 class CPU:
     """Main CPU class."""
@@ -24,7 +32,7 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
-
+        self.running = True
         self.pc = 0
         self.sp = 7
         self.reg[self.sp] = 0xF4
@@ -43,7 +51,14 @@ class CPU:
             CMP: self.handle_cmp,
             JMP: self.handle_jmp,
             JEQ: self.handle_jeq,
-            JNE: self.handle_jne
+            JNE: self.handle_jne,
+            AND: self.handle_and,
+            OR: self.handle_or,
+            XOR: self.handle_xor,
+            NOT: self.handle_not,
+            SHL: self.handle_shl,
+            SHR: self.handle_shr,
+            MOD: self.handle_mod
         }
 
     def load(self, filename):
@@ -110,6 +125,24 @@ class CPU:
                 self.flag = 1
             else:
                 self.flag = 0 
+        elif op == 'AND':
+            self.reg[reg_a] &= self.reg[reg_b]
+        elif op == 'OR':
+            self.reg[reg_a] |= self.reg[reg_b]
+        elif op == 'XOR':
+            self.reg[reg_a] ^= self.reg[reg_b]
+        elif op == 'NOT':
+            self.reg[reg_a] = ~self.reg[reg_a] # accounts for signed
+        elif op == 'SHL': # not modified for numbers >128
+            self.reg[reg_a] = self.reg[reg_a] << self.reg[reg_b]
+        elif op == 'SHR':
+            self.reg[reg_a] = self.reg[reg_a] >> self.reg[reg_b]
+        elif op == 'MOD':
+            if reg_b != 0:
+                self.reg[reg_a] %= self.reg[reg_b]
+            else:
+                raise Exception("Unsupported ALU operation")
+                self.running = False
 
         else:
             raise Exception("Unsupported ALU operation")
@@ -163,6 +196,62 @@ class CPU:
 
         self.pc += 3
 
+    def handle_and(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('AND', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_or(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('OR', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_xor(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('XOR', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_not(self):
+        operand_a = self.ram_read(self.pc+1)
+
+        self.alu('NOT', operand_a, None)
+
+        self.pc += 2
+
+    def handle_shl(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('SHL', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_SHR(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('SHR', operand_a, operand_b)
+
+        self.pc += 3
+
+    def handle_mod(self):
+        operand_a = self.ram_read(self.pc+1)
+        operand_b = self.ram_read(self.pc+2)
+
+        self.alu('MOD', operand_a, operand_b)
+
+        self.pc += 3
+
+#-----------------------------Stack functions------------
     def handle_push(self):
         operand_a = self.ram_read(self.pc+1)
         self.reg[self.sp] -= 1
@@ -178,6 +267,7 @@ class CPU:
 
         self.pc += 2
 
+#-----------------------------Sub-routine Functions--------------
     def handle_call(self):
         operand_a = self.ram_read(self.pc+1) #the reg with the address
         self.reg[self.sp] -= 1
@@ -229,16 +319,16 @@ class CPU:
         # operand_a = self.ram_read(self.pc+1)
         # operand_b = self.ram_read(self.pc+2)
 
-        running = True
+        # running = True
 
-        while running:
+        while self.running:
             # print(self.reg)
             # print(self.ram[self.reg[self.sp]])
             ir = self.ram_read(self.pc)
             # print(f'ir: {ir}, pc: {self.pc}') #debug
             if ir == HLT:
                 # print('HLT') #debug
-                running = False
+                self.running = False
                 self.pc += 1
             elif ir != HLT:
                 self.branchtable[ir]()
